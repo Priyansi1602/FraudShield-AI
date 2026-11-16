@@ -1,3 +1,5 @@
+import os
+import re
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
@@ -10,15 +12,27 @@ def create_app():
     app.config.from_object(Config)
     
     # Configure CORS to accept requests from our React frontend dev/prod origins with credentials
+    allowed_origins = [
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173", 
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        re.compile(r"^https:\/\/.*\.vercel\.app$"),
+        re.compile(r"^https:\/\/.*\.onrender\.com$"),
+        re.compile(r"^https:\/\/.*\.netlify\.app$"),
+        re.compile(r"^https:\/\/.*\.railway\.app$")
+    ]
+    frontend_env = os.getenv('FRONTEND_URL')
+    if frontend_env:
+        for origin in frontend_env.split(','):
+            cleaned = origin.strip().rstrip('/')
+            if cleaned and cleaned not in allowed_origins:
+                allowed_origins.append(cleaned)
+
     CORS(app, resources={r"/api/*": {
-        "origins": [
-            "http://localhost:5173", 
-            "http://127.0.0.1:5173", 
-            "http://localhost:3000", 
-            "http://127.0.0.1:3000",
-            "http://localhost:5000",
-            "http://127.0.0.1:5000"
-        ],
+        "origins": allowed_origins,
         "supports_credentials": True,
         "allow_headers": ["Content-Type", "Authorization"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]

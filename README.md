@@ -187,6 +187,57 @@ The application auto-seeds a demonstration fraud analyst account upon first init
 
 ---
 
+## 🌐 Cloud Deployment Guide
+
+### Option 1: 1-Click Blueprint on Render (Recommended)
+1. Fork or push this repository to your GitHub account: `https://github.com/Priyansi1602/FraudShield-AI`.
+2. Sign in to [Render.com](https://render.com).
+3. Click **New +** -> **Blueprint**.
+4. Connect this repository and select `render.yaml`.
+5. Render will automatically build both the **Backend Web Service** (Gunicorn + Flask) and the **Frontend Static Site** (Vite + React) with zero manual configuration.
+
+---
+
+### Option 2: Render (Backend) + Vercel (Frontend)
+
+#### A. Deploy Backend to Render:
+1. On [Render Dashboard](https://dashboard.render.com), click **New +** -> **Web Service**.
+2. Connect `https://github.com/Priyansi1602/FraudShield-AI`.
+3. Configure settings:
+   - **Root Directory**: `backend`
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn wsgi:app`
+4. Add Environment Variables:
+   - `SECRET_KEY`: *(Generate any random string)*
+   - `JWT_SECRET_KEY`: *(Generate any random string)*
+   - `JWT_EXPIRY_HOURS`: `24`
+   - `DEBUG`: `False`
+5. Click **Deploy**. Note your live URL (e.g., `https://fraudshield-backend.onrender.com`).
+
+#### B. Deploy Frontend to Vercel:
+1. Sign in to [Vercel](https://vercel.com) and click **Add New** -> **Project**.
+2. Import `https://github.com/Priyansi1602/FraudShield-AI`.
+3. Configure settings:
+   - **Root Directory**: Select `frontend`
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. In **Environment Variables**, add:
+   - `VITE_API_URL` = `https://<YOUR-RENDER-BACKEND-URL>/api` (e.g., `https://fraudshield-backend.onrender.com/api`)
+5. Click **Deploy**!
+
+---
+
+### Option 3: Docker Deployment
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
+Access the application on `http://localhost:5000`.
+
+---
+
 ## 🧪 Testing
 
 ```bash

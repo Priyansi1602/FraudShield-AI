@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fraudshield:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=fs_prod_secret_key_84920
+      - JWT_SECRET_KEY=fs_prod_jwt_key_10398
+      - JWT_EXPIRY_HOURS=24
+      - DEBUG=False
+    volumes:
+      - fraudshield_data:/app/backend/data
+
+volumes:
+  fraudshield_data:
