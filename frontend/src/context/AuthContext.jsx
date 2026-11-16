@@ -2,56 +2,93 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import authService from '../services/authService';
 import { storage } from '../utils/storage';
 
-// Create the authentication context
+// Create the centralized authentication context
 const AuthContext = createContext(null);
 
 // Create the provider component
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => storage.getUser());
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize auth state on mount using the auth service layer
+  // Initialize and verify authentication state on application startup
   useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        if (import.meta.env.DEV) {
-          const rememberMe = localStorage.getItem('fs_remember_me') === 'true';
-          if (!rememberMe) {
-            storage.clearSession();
-          }
-        }
+    let isMounted = true;
 
-        const currentUser = authService.getCurrentUser();
-        const authenticated = authService.isAuthenticated();
-        
-        if (currentUser && authenticated) {
-          setUser(currentUser);
+    const initializeAuth = async () => {
+      try {
+        const storedToken = storage.getToken();
+        const cachedUser = storage.getUser();
+
+        if (storedToken && cachedUser) {
+          // Optimistically restore cached analyst session
+          if (isMounted) setUser(cachedUser);
+
+          // Verify token validity & freshness against backend /api/auth/me
+          try {
+            const liveUser = await authService.fetchCurrentUserProfile();
+            if (isMounted && liveUser) {
+              setUser(liveUser);
+              storage.saveUser(liveUser);
+            }
+          } catch (verifyErr) {
+            console.warn('Session verification notice:', verifyErr.message);
+            // Invalidate if token is revoked, expired, or rejected with 401
+            if (
+              verifyErr.response?.status === 401 ||
+              verifyErr.message?.toLowerCase().includes('expired') ||
+              verifyErr.message?.toLowerCase().includes('invalid') ||
+              verifyErr.message?.toLowerCase().includes('revoked')
+            ) {
+              storage.clearSession();
+              if (isMounted) setUser(null);
+            }
+          }
         } else {
-          // If storage is corrupted or in an inconsistent state, reset session
-          authService.logout();
+          storage.clearSession();
+          if (isMounted) setUser(null);
         }
       } catch (error) {
         console.error('Failed to initialize session authentication context:', error);
-        authService.logout();
+        storage.clearSession();
+        if (isMounted) setUser(null);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     initializeAuth();
+
+    // Multi-tab synchronization: sync authentication state across browser tabs
+    const handleStorageChange = (e) => {
+      if (e.key === 'fs_token' || e.key === 'fs_user') {
+        const activeToken = storage.getToken();
+        const activeUser = storage.getUser();
+        if (!activeToken || !activeUser) {
+          setUser(null);
+        } else {
+          setUser(activeUser);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   /**
-   * Login action handler.
+   * Centralized Login action handler.
    */
-  const login = async (email, password, rememberMe = false) => {
+  const login = async (email, password, rememberMe = true) => {
     const response = await authService.login(email, password, rememberMe);
     setUser(response.user);
     return response;
   };
 
   /**
-   * Signup action handler.
+   * Centralized Signup action handler.
    */
   const signup = async (fullName, email, password) => {
     const response = await authService.signup(fullName, email, password);
@@ -60,11 +97,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Logout action handler.
+   * Centralized Logout action handler:
+   * Invalidates server-side session, clears cookies, wipes local storage, resets state.
    */
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.warn('Logout notification error:', err);
+    } finally {
+      setUser(null);
+      storage.clearSession();
+    }
   };
 
   const value = {

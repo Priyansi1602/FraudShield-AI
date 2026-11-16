@@ -9,8 +9,20 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Configure CORS to accept requests from our React frontend dev/prod origins
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Configure CORS to accept requests from our React frontend dev/prod origins with credentials
+    CORS(app, resources={r"/api/*": {
+        "origins": [
+            "http://localhost:5173", 
+            "http://127.0.0.1:5173", 
+            "http://localhost:3000", 
+            "http://127.0.0.1:3000",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000"
+        ],
+        "supports_credentials": True,
+        "allow_headers": ["Content-Type", "Authorization"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    }})
     
     # Bind and initialize MySQL database context
     init_db(app)

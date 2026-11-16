@@ -53,6 +53,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/scan" element={<Scan />} />
             <Route path="/history" element={<History />} />
+            <Route path="/audit" element={<History />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/profile" element={<Profile />} />
@@ -61,7 +62,7 @@ function App() {
           </Route>
 
           {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

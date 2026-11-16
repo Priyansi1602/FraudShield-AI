@@ -3,6 +3,7 @@ import datetime
 from flask import request, jsonify, current_app
 from functools import wraps
 from models.user import User
+from models.revoked_token import RevokedToken
 
 def generate_token(user_id):
     """
@@ -41,20 +42,31 @@ def decode_token(token):
 def token_required(f):
     """
     Flask decorator to protect REST API endpoints.
-    Requires header: 'Authorization: Bearer <JWT_token>'
+    Accepts:
+    1. Header: 'Authorization: Bearer <JWT_token>'
+    2. Cookie: 'fs_token=<JWT_token>'
+    Validates token signature, expiration, and ensures token is not revoked.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
         
-        # Check authorization headers
+        # 1. Check Authorization header
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             if auth_header.startswith('Bearer '):
                 token = auth_header.split(' ')[1]
                 
+        # 2. Fallback to HttpOnly cookie
+        if not token:
+            token = request.cookies.get('fs_token')
+                
         if not token:
             return jsonify({'message': 'Authorization credentials are required.'}), 401
+            
+        # 3. Check server-side revocation list
+        if RevokedToken.is_revoked(token):
+            return jsonify({'message': 'Session token has been invalidated. Please log in again.'}), 401
             
         try:
             user_id = decode_token(token)

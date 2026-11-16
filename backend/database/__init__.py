@@ -12,6 +12,7 @@ def init_db(app):
     # Import models to register them with SQLAlchemy before db.create_all()
     from models.user import User
     from models.prediction_history import PredictionHistory
+    from models.revoked_token import RevokedToken
     
     with app.app_context():
         try:

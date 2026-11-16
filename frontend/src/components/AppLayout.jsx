@@ -14,8 +14,13 @@ function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { state: { toastMessage: 'Logged out successfully.' } });
+    try {
+      await logout();
+    } catch (e) {
+      console.warn('Logout error:', e);
+    } finally {
+      navigate('/', { replace: true });
+    }
   };
 
   const navItems = [

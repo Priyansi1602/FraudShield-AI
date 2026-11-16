@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models.user import User
+from models.revoked_token import RevokedToken
 from utils.auth import generate_token, token_required
 
 auth_bp = Blueprint('auth', __name__)
@@ -37,11 +38,21 @@ def signup():
         # Auto-login upon registration by issuing a token
         token = generate_token(new_user.id)
         
-        return jsonify({
+        response = jsonify({
             'message': 'Account created successfully.',
             'token': token,
             'user': new_user.to_dict()
-        }), 201
+        })
+        # Set secure HttpOnly, SameSite cookie
+        response.set_cookie(
+            'fs_token',
+            token,
+            max_age=24 * 3600,
+            httponly=True,
+            samesite='Lax',
+            secure=request.is_secure
+        )
+        return response, 201
         
     except Exception as e:
         db.session.rollback()
@@ -69,14 +80,50 @@ def login():
             
         token = generate_token(user.id)
         
-        return jsonify({
+        response = jsonify({
             'message': 'Log in successful.',
             'token': token,
             'user': user.to_dict()
-        }), 200
+        })
+        # Set secure HttpOnly, SameSite cookie
+        response.set_cookie(
+            'fs_token',
+            token,
+            max_age=24 * 3600,
+            httponly=True,
+            samesite='Lax',
+            secure=request.is_secure
+        )
+        return response, 200
         
     except Exception as e:
         return jsonify({'message': f'Server error during user login: {str(e)}'}), 500
+
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """
+    Terminates session server-side, revokes JWT token, and removes cookies.
+    """
+    token = None
+    if 'Authorization' in request.headers:
+        auth_header = request.headers['Authorization']
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+    if not token:
+        token = request.cookies.get('fs_token')
+        
+    if token:
+        try:
+            if not RevokedToken.is_revoked(token):
+                revoked = RevokedToken(token=token)
+                db.session.add(revoked)
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+
+    response = jsonify({'message': 'Logged out successfully.'})
+    response.delete_cookie('fs_token', path='/')
+    return response, 200
 
 @auth_bp.route('/me', methods=['GET'])
 @token_required

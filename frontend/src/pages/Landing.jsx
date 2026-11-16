@@ -9,7 +9,7 @@ import heroIllustration from '../assets/hero_fintech.png';
 import heroImg from '../assets/hero.png';
 
 function Landing() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
 
   const valueProps = [
     {
@@ -79,31 +79,31 @@ function Landing() {
           <a href="#security" className="hover:text-[#101B2D] transition-colors">Security</a>
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {isAuthenticated ? (
+            <>
+              <button
+                onClick={logout}
+                className="text-xs font-semibold text-[#64748B] hover:text-[#E05252] transition-colors px-2 py-1 cursor-pointer"
+              >
+                Sign Out
+              </button>
+              <Link 
+                to="/dashboard" 
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#00A878] hover:bg-[#009268] text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
+              >
+                <span>Console Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </>
+          ) : (
             <Link 
-              to="/dashboard" 
+              to="/login" 
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#00A878] hover:bg-[#009268] text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
             >
               <span>Console Dashboard</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
-          ) : (
-            <>
-              <Link 
-                to="/login" 
-                className="text-sm font-semibold text-[#101B2D] hover:text-[#00A878] transition-colors px-2 py-1"
-              >
-                Sign In
-              </Link>
-              <Link 
-                to="/signup" 
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00A878] hover:bg-[#009268] text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
-              >
-                <span>Get Started</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </>
           )}
         </div>
       </header>

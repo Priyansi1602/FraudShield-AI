@@ -4,9 +4,10 @@ import { storage } from '../utils/storage';
 // Define the API Base URL pointing to the Flask server
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Create the unified Axios instance
+// Create the unified Axios instance with cookie credentials support
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,16 +27,24 @@ api.interceptors.request.use(
   }
 );
 
-// Axios Response Interceptor: Capture HTTP 401 responses to automatically invalidate expired sessions
+// Axios Response Interceptor: Capture HTTP 401 and 403 responses to automatically invalidate expired sessions
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      console.warn('Authentication token expired or invalid. Automatic logout triggered.');
-      storage.clearSession();
-      // Force page refresh to trigger AuthContext re-check and route redirect to /login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login?expired=true';
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401) {
+        console.warn('Session expired, revoked, or unauthorized (401). Invalidating local session.');
+        storage.clearSession();
+        
+        // Prevent redirect loops on public pages
+        const currentPath = window.location.pathname;
+        const isPublicPath = currentPath === '/' || currentPath === '/login' || currentPath === '/signup';
+        if (!isPublicPath) {
+          window.location.href = '/login?expired=true';
+        }
+      } else if (status === 403) {
+        console.warn('Access forbidden (403): insufficient privileges.');
       }
     }
     return Promise.reject(error);
@@ -46,7 +55,7 @@ export const authService = {
   /**
    * Log in user, verify credentials, and save the session token.
    */
-  login: async (email, password, rememberMe = false) => {
+  login: async (email, password, rememberMe = true) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
@@ -68,8 +77,8 @@ export const authService = {
       const response = await api.post('/auth/signup', { fullName, email, password });
       const { token, user } = response.data;
 
-      storage.saveToken(token, false);
-      storage.saveUser(user, false);
+      storage.saveToken(token, true);
+      storage.saveUser(user, true);
 
       return { token, user };
     } catch (error) {
@@ -78,14 +87,13 @@ export const authService = {
   },
 
   /**
-   * Terminate user session and remove tokens.
+   * Terminate user session server-side, revoke token, clear cookies, and wipe local storage.
    */
   logout: async () => {
     try {
-      // Optional backend endpoint notify
-      // await api.post('/auth/logout');
+      await api.post('/auth/logout');
     } catch (e) {
-      console.warn('Backend logout notification failed', e);
+      console.warn('Backend logout endpoint notification warning:', e);
     } finally {
       storage.clearSession();
     }
@@ -111,7 +119,7 @@ export const authService = {
   },
 
   /**
-   * Check if user is authenticated based on existence of a valid JWT token.
+   * Check if user is authenticated based on existence of a valid token.
    */
   isAuthenticated: () => {
     const token = storage.getToken();
