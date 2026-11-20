@@ -3,40 +3,16 @@ services:
   - type: web
     name: fraudshield-backend
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn wsgi:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: SECRET_KEY
-        generateValue: true
-      - key: JWT_SECRET_KEY
-        generateValue: true
-      - key: JWT_EXPIRY_HOURS
-        value: 24
-      - key: DEBUG
-        value: false
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: fraudshield-frontend
-          property: host
-
+    ...
   # Frontend React Static Site
   - type: web
     name: fraudshield-frontend
     runtime: static
+    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: fraudshield-backend
-          envVarKey: RENDER_EXTERNAL_URL
+    ...
