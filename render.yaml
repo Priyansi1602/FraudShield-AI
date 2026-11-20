@@ -39,5 +39,4 @@ services:
         fromService:
           type: web
           name: fraudshield-backend
-          property: url
-          postfix: /api
+          envVarKey: RENDER_EXTERNAL_URL
